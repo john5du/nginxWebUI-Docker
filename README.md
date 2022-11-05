@@ -11,7 +11,7 @@ docker run -itd \
   -e PGID=1000 \
   --privileged=true \
   --net=host \
-  cym1102/nginxwebui:latest
+  ddsderek/nginxwebui:latest
 ```
 
 **docker-compose**
@@ -27,5 +27,5 @@ services:
             - PGID=1000
         privileged: true
         network_mode: host
-        image: 'cym1102/nginxwebui:latest'
+        image: 'ddsderek/nginxwebui:latest'
 ```
