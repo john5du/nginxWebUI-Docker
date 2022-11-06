@@ -2,7 +2,7 @@ name: 构建 nginxWebUI Nightly 镜像
 
 on:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 2 * * *'
 
 jobs:
   build:
