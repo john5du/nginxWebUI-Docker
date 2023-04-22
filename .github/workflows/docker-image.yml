@@ -1,23 +1,35 @@
 name: 构建 nginxWebUI 镜像
 
 on:
-    release:
-        types: [published]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *"
 
 jobs:
-  job1:
-    name: Build amd64
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - 
         name: Checkout
         uses: actions/checkout@master
-      
-      - name: Set Version
-        id: set-version
+
+      - 
+        name: Build nginxWebUI.jar
+        id: prepare
         run: |
-          echo "::set-output name=version::${GITHUB_REF:10}"
-          echo "ReleaseTag=${GITHUB_REF:10}"
+          git clone https://gitee.com/cym1102/nginxWebUI src
+          cd src
+          version=$(cat pom.xml | grep -A1 nginxWebUI | grep version | perl -pe "s|.*((\d+\.?){3,}).*|\1|")
+          echo "NGINXWEBUI_VERSION=${version}" >> $GITHUB_ENV
+          mvn clean package
+
+      - 
+        name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/nginxwebui
 
       - 
         name: Set Up QEMU
@@ -35,198 +47,20 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - 
-        name: Buildx-amd64
+        name: Build
         uses: docker/build-push-action@v4
         with:
           context: .
           file: Dockerfile
           platforms: |
             linux/amd64
-          push: true
-          build-args: |
-            VERSION=${{ steps.set-version.outputs.version }}
-          tags: |
-             ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }}_amd64
-
-  job2:
-    name: Build arm64
-    runs-on: ubuntu-latest
-    steps:
-      - 
-        name: Checkout
-        uses: actions/checkout@master
-      
-      - name: Set Version
-        id: set-version
-        run: |
-          echo "::set-output name=version::${GITHUB_REF:10}"
-          echo "ReleaseTag=${GITHUB_REF:10}"
-
-      - 
-        name: Set Up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - 
-        name: Set Up Buildx
-        uses: docker/setup-buildx-action@v2
-        
-      - 
-        name: Login DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - 
-        name: Buildx-arm64
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: Dockerfile
-          platforms: |
             linux/arm64/v8
-          push: true
-          build-args: |
-            VERSION=${{ steps.set-version.outputs.version }}
-          tags: |
-             ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }}_arm64
-
-  job3:
-    name: Build arm
-    runs-on: ubuntu-latest
-    steps:
-      - 
-        name: Checkout
-        uses: actions/checkout@master
-      
-      - name: Set Version
-        id: set-version
-        run: |
-          echo "::set-output name=version::${GITHUB_REF:10}"
-          echo "ReleaseTag=${GITHUB_REF:10}"
-
-      - 
-        name: Set Up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - 
-        name: Set Up Buildx
-        uses: docker/setup-buildx-action@v2
-        
-      - 
-        name: Login DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - 
-        name: Buildx-arm
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: Dockerfile
-          platforms: |
             linux/arm/v7
           push: true
-          build-args: |
-            VERSION=${{ steps.set-version.outputs.version }}
           tags: |
-             ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }}_arm
-
-
-  job4:
-    needs: [job1, job2, job3]
-    name: version tag
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Set Version
-        id: set-version
-        run: |
-          echo "::set-output name=version::${GITHUB_REF:10}"
-          echo "ReleaseTag=${GITHUB_REF:10}"
-      - name: Set up QEMU
-        id: qemu
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: all
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          version: latest
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: create version tag
-        run: |
-          docker buildx imagetools create -t ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }} \
-            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }}_amd64 \
-            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }}_arm64 \
-            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }}_arm
-
-
-      - name: create latest-amd64 tag
-        run: |
-          docker buildx imagetools create -t ${{ secrets.DOCKER_USERNAME }}/nginxwebui:latest_amd64 \
-            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }}_amd64
-
-      - name: create latest-arm64 tag
-        run: |
-          docker buildx imagetools create -t ${{ secrets.DOCKER_USERNAME }}/nginxwebui:latest_arm64 \
-            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }}_arm64
-
-      - name: create latest-arm tag
-        run: |
-          docker buildx imagetools create -t ${{ secrets.DOCKER_USERNAME }}/nginxwebui:latest_arm \
-            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ steps.set-version.outputs.version }}_arm
-
-
-      - name: create latest tag
-        run: |
-          docker buildx imagetools create -t ${{ secrets.DOCKER_USERNAME }}/nginxwebui:latest \
-            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:latest_amd64 \
-            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:latest_arm64 \
-            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:latest_arm
-
-  job5:
-    needs: [job1, job2, job3, job4]
-    name: 更新DockerHub介绍
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Set Version
-        id: set-version
-        run: |
-          echo "::set-output name=version::${GITHUB_REF:10}"
-          echo "ReleaseTag=${GITHUB_REF:10}"
-      - name: Set up QEMU
-        id: qemu
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: all
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          version: latest
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:${{ env.NGINXWEBUI_VERSION }}
+            ${{ secrets.DOCKER_USERNAME }}/nginxwebui:latest
+          labels: ${{ steps.meta.outputs.labels }}
 
       - name: Docker Hub Description
         uses: peter-evans/dockerhub-description@v3
