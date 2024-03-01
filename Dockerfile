@@ -18,6 +18,7 @@ RUN apk add --no-cache \
        openjdk8-jre \
        shadow \
        su-exec \
+       logrotate \
        dumb-init \
        ttf-dejavu \
        tzdata \
