@@ -15,6 +15,8 @@ RUN apk add --no-cache \
        nginx-mod-stream \
        nginx-mod-http-headers-more \
        nginx-mod-http-lua \
+       nginx-mod-http-brotli \
+       nginx-mod-rtmp \
        openjdk8-jre \
        shadow \
        su-exec \
